@@ -67,6 +67,8 @@ final class MovieQuizViewController: UIViewController {
     @IBOutlet private var counterLabel: UILabel!
     @IBOutlet private var imageView: UIImageView!
     @IBOutlet private var textLabel: UILabel!
+    @IBOutlet private var noButton: UIButton!
+    @IBOutlet private var yesButton: UIButton!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -103,6 +105,8 @@ final class MovieQuizViewController: UIViewController {
         imageView.layer.masksToBounds = true
         imageView.layer.borderWidth = 8
         imageView.layer.borderColor = isCorrect ? UIColor.ypGreen.cgColor : UIColor.ypRed.cgColor
+        noButton.isEnabled = false
+        yesButton.isEnabled = false
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.showNextQuestionOrResults()
@@ -125,6 +129,8 @@ final class MovieQuizViewController: UIViewController {
             show(quiz: viewModel)
         }
         imageView.layer.borderWidth = 0
+        noButton.isEnabled = true
+        yesButton.isEnabled = true
     }
     
     private func show(quiz step: QuizStepViewModel) {
