@@ -7,6 +7,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     private let questionsAmount: Int = 10
     private var questionFactory: QuestionFactoryProtocol?
     private var currentQuestion: QuizQuestion?
+    private let statisticService: StatisticService = StatisticServiceImplementation()
     
     @IBOutlet private var counterLabel: UILabel!
     @IBOutlet private var imageView: UIImageView!
@@ -85,19 +86,20 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     
     private func showNextQuestionOrResults() {
         if currentQuestionIndex == questionsAmount - 1 {
-            let completion = { [weak self] in
-                guard let self = self else { return }
-                
-                self.currentQuestionIndex = 0
-                self.correctAnswers = 0
-                self.questionFactory?.requestNextQuestion()
-            }
-            let alertModel = AlertModel(title: "Этот раунд окончен!",
-                                        message: "Ваш результат: \(correctAnswers)/\(questionsAmount)",
-                                        buttonText: "Сыграть еще раз",
-                                        completion: completion)
-            let alertPresenter = AlertPresenter(controller: self)
-            alertPresenter.showAlert(model: alertModel)
+            statisticService.store(correct: correctAnswers, total: questionsAmount)
+            
+            let message = """
+            Ваш результат: \(correctAnswers)/\(questionsAmount)
+            Количество сыгранных квизов: \(statisticService.gamesCount)
+            Рекорд: \(statisticService.bestGame.correct)/\(statisticService.bestGame.total) (\(statisticService.bestGame.date.dateTimeString))
+            Средняя точность: \(String(format: "%.2f", statisticService.totalAccuracy))%
+            """
+            
+            let viewModel = QuizResultsViewModel(
+                title: "Этот раунд окончен!",
+                message: message,
+                buttonText: "Сыграть еще раз")
+            show(quiz: viewModel)
         } else {
             currentQuestionIndex += 1
             questionFactory?.requestNextQuestion()
@@ -111,5 +113,20 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         counterLabel.text = step.questionNumber
         imageView.image = step.image
         textLabel.text = step.question
+    }
+    
+    private func show(quiz result: QuizResultsViewModel) {
+        let completion = { [weak self] in
+            guard let self = self else { return }
+            
+            self.currentQuestionIndex = 0
+            self.correctAnswers = 0
+            self.questionFactory?.requestNextQuestion()
+        }
+        let alertModel = AlertModel(title: result.title,
+                                    message: result.message,
+                                    buttonText: result.buttonText,
+                                    completion: completion)
+        AlertPresenter(controller: self).showAlert(model: alertModel)
     }
 }
