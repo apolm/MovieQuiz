@@ -14,6 +14,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     @IBOutlet private var textLabel: UILabel!
     @IBOutlet private var noButton: UIButton!
     @IBOutlet private var yesButton: UIButton!
+    @IBOutlet private var activityIndicator: UIActivityIndicatorView!
     
     override var preferredStatusBarStyle: UIStatusBarStyle {
         return .lightContent
@@ -23,10 +24,11 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        let questionFactory = QuestionFactory()
-        questionFactory.delegate = self
+        let questionFactory = QuestionFactory(moviesLoader: MoviesLoader(), delegate: self)
         self.questionFactory = questionFactory
-        questionFactory.requestNextQuestion()
+        
+        showLoadingIndicator()
+        questionFactory.loadData()
     }
     
     // MARK: - QuestionFactoryDelegate
@@ -40,6 +42,16 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.show(quiz: viewModel)
         }
+    }
+    
+    func didLoadDataFromServer() {
+        hideLoadingIndicator()
+        questionFactory?.requestNextQuestion()
+    }
+
+    func didFailToLoadData(with error: Error) {
+        hideLoadingIndicator()
+        showNetworkError(message: error.localizedDescription)
     }
     
     // MARK: - Actions
@@ -62,7 +74,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     // MARK: - Private functions
     private func convert(model: QuizQuestion) -> QuizStepViewModel {
         QuizStepViewModel(
-            image: UIImage(named: model.image) ?? UIImage(),
+            image: UIImage(data: model.image) ?? UIImage(),
             question: model.text,
             questionNumber: "\(currentQuestionIndex + 1)/\(questionsAmount)")
     }
@@ -107,6 +119,34 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         imageView.layer.borderWidth = 0
         noButton.isEnabled = true
         yesButton.isEnabled = true
+    }
+    
+    private func showLoadingIndicator() {
+        activityIndicator.isHidden = false
+        activityIndicator.startAnimating()
+        noButton.isEnabled = false
+        yesButton.isEnabled = false
+        textLabel.text = ""
+    }
+    
+    private func hideLoadingIndicator() {
+        activityIndicator.isHidden = true
+        noButton.isEnabled = true
+        yesButton.isEnabled = true
+    }
+    
+    private func showNetworkError(message: String) {
+        let completion = { [weak self] in
+            guard let self = self else { return }
+            
+            self.showLoadingIndicator()
+            self.questionFactory?.loadData()
+        }
+        let alertModel = AlertModel(title: "Что-то пошло не так(",
+                                    message: "Невозможно загрузить данные",
+                                    buttonText: "Попробовать еще раз",
+                                    completion: completion)
+        AlertPresenter(controller: self).showAlert(model: alertModel)
     }
     
     private func show(quiz step: QuizStepViewModel) {
