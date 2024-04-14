@@ -157,6 +157,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         let alertModel = AlertModel(title: "Что-то пошло не так(",
                                     message: "Невозможно загрузить данные",
                                     buttonText: "Попробовать еще раз",
+                                    accessibilityIdentifier: "Network Error",
                                     completion: completion)
         AlertPresenter(controller: self).showAlert(model: alertModel)
     }
@@ -179,6 +180,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         let alertModel = AlertModel(title: result.title,
                                     message: result.message,
                                     buttonText: result.buttonText,
+                                    accessibilityIdentifier: "Game Results",
                                     completion: completion)
         AlertPresenter(controller: self).showAlert(model: alertModel)
     }

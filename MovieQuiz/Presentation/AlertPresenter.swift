@@ -13,6 +13,9 @@ class AlertPresenter {
         let alert = UIAlertController(title: model.title,
                                       message: model.message,
                                       preferredStyle: .alert)
+        if let accessibilityIdentifier = model.accessibilityIdentifier {
+            alert.view.accessibilityIdentifier = accessibilityIdentifier
+        }
         let action = UIAlertAction(title: model.buttonText, style: .default) { _ in
             model.completion()
         }
