@@ -24,8 +24,6 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        imageView.isOpaque = false
-        
         let questionFactory = QuestionFactory(moviesLoader: MoviesLoader(), delegate: self)
         self.questionFactory = questionFactory
         
@@ -45,6 +43,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.hideLoadingIndicator()
             self?.show(quiz: viewModel)
+            self?.imageView.layer.borderWidth = 0
         }
     }
     
@@ -130,12 +129,13 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
                 message: message,
                 buttonText: "Сыграть еще раз")
             show(quiz: viewModel)
+            
+            imageView.layer.borderWidth = 0
         } else {
             currentQuestionIndex += 1
             showLoadingIndicator()
             questionFactory?.requestNextQuestion()
         }
-        imageView.layer.borderWidth = 0
     }
     
     private func showLoadingIndicator() {
@@ -143,14 +143,12 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         activityIndicator.startAnimating()
         noButton.isEnabled = false
         yesButton.isEnabled = false
-        imageView.alpha = 0.5
     }
     
     private func hideLoadingIndicator() {
         activityIndicator.isHidden = true
         noButton.isEnabled = true
         yesButton.isEnabled = true
-        imageView.alpha = 1
     }
     
     private func showNetworkError(completion: @escaping () -> Void) {
