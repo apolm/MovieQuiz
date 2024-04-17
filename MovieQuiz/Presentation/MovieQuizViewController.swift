@@ -4,9 +4,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     private var correctAnswers = 0
     private var questionFactory: QuestionFactoryProtocol?
     
-    private var currentQuestion: QuizQuestion?
     
-    private let statisticService: StatisticService = StatisticServiceImplementation()
     private let presenter = MovieQuizPresenter()
     
     @IBOutlet private var counterLabel: UILabel!
@@ -35,18 +33,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     
     // MARK: - QuestionFactoryDelegate
     func didReceiveNextQuestion(question: QuizQuestion?) {
-        guard let question = question else {
-            return
-        }
-        
-        currentQuestion = question
-        let viewModel = presenter.convert(model: question)
-        
-        DispatchQueue.main.async { [weak self] in
-            self?.hideLoadingIndicator()
-            self?.show(quiz: viewModel)
-            self?.imageView.layer.borderWidth = 0
-        }
+        presenter.didReceiveNextQuestion(question: question)
     }
     
     func didFailToReceiveNextQuestion(with error: Error) {
@@ -75,12 +62,10 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     
     // MARK: - Actions
     @IBAction private func noButtonClicked(_ sender: Any) {
-        presenter.currentQuestion = currentQuestion
         presenter.noButtonClicked()
     }
     
     @IBAction private func yesButtonClicked(_ sender: Any) {
-        presenter.currentQuestion = currentQuestion
         presenter.yesButtonClicked()
     }
     
@@ -98,46 +83,27 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let self = self else { return }
-            self.showNextQuestionOrResults()
+            self.presenter.correctAnswers = self.correctAnswers
+            self.presenter.questionFactory = self.questionFactory
+            self.presenter.showNextQuestionOrResults()
         }
     }
     
-    private func showNextQuestionOrResults() {
-        if presenter.isLastQuestion() {
-            statisticService.store(correct: correctAnswers, total: presenter.questionsAmount)
-            
-            let message = """
-            Ваш результат: \(correctAnswers)/\(presenter.questionsAmount)
-            Количество сыгранных квизов: \(statisticService.gamesCount)
-            Рекорд: \(statisticService.bestGame.correct)/\(statisticService.bestGame.total) (\(statisticService.bestGame.date.dateTimeString))
-            Средняя точность: \(String(format: "%.2f", statisticService.totalAccuracy))%
-            """
-            
-            let viewModel = QuizResultsViewModel(
-                title: "Этот раунд окончен!",
-                message: message,
-                buttonText: "Сыграть еще раз")
-            show(quiz: viewModel)
-            
-            imageView.layer.borderWidth = 0
-        } else {
-            presenter.switchToNextQuestion()
-            showLoadingIndicator()
-            questionFactory?.requestNextQuestion()
-        }
-    }
-    
-    private func showLoadingIndicator() {
+    func showLoadingIndicator() {
         activityIndicator.isHidden = false
         activityIndicator.startAnimating()
         noButton.isEnabled = false
         yesButton.isEnabled = false
     }
     
-    private func hideLoadingIndicator() {
+    func hideLoadingIndicator() {
         activityIndicator.isHidden = true
         noButton.isEnabled = true
         yesButton.isEnabled = true
+    }
+    
+    func hideImageFrame() {
+        imageView.layer.borderWidth = 0
     }
     
     private func showNetworkError(completion: @escaping () -> Void) {
@@ -149,13 +115,13 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         AlertPresenter(controller: self).showAlert(model: alertModel)
     }
     
-    private func show(quiz step: QuizStepViewModel) {
+    func show(quiz step: QuizStepViewModel) {
         counterLabel.text = step.questionNumber
         imageView.image = step.image
         textLabel.text = step.question
     }
     
-    private func show(quiz result: QuizResultsViewModel) {
+    func show(quiz result: QuizResultsViewModel) {
         let completion = { [weak self] in
             guard let self = self else { return }
             
