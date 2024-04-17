@@ -1,22 +1,75 @@
 import UIKit
 
-final class MovieQuizPresenter {
-    let questionsAmount: Int = 10
-    var currentQuestion: QuizQuestion?
-    weak var viewController: MovieQuizViewController?
-    
-    var correctAnswers = 0
-    var questionFactory: QuestionFactoryProtocol?
-    
+final class MovieQuizPresenter: QuestionFactoryDelegate {
+    private weak var viewController: MovieQuizViewController?
+    private var questionFactory: QuestionFactoryProtocol?
+    private var currentQuestion: QuizQuestion?
     private var currentQuestionIndex: Int = 0
+    private let questionsAmount: Int = 10
+    private var correctAnswers = 0
     private let statisticService: StatisticService = StatisticServiceImplementation()
     
+    init(viewController: MovieQuizViewController) {
+        self.viewController = viewController
+        
+        questionFactory = QuestionFactory(moviesLoader: MoviesLoader(), delegate: self)
+        questionFactory?.loadData()
+        
+        self.viewController?.showLoadingIndicator()
+        
+    }
+    
+    // MARK: - QuestionFactoryDelegate
+    func didReceiveNextQuestion(question: QuizQuestion?) {
+        guard let question = question else {
+            return
+        }
+        
+        currentQuestion = question
+        let viewModel = convert(model: question)
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.viewController?.hideLoadingIndicator()
+            self?.viewController?.hideImageFrame()
+            self?.viewController?.show(quiz: viewModel)
+        }
+    }
+    
+    func didFailToReceiveNextQuestion(with error: Error) {
+        viewController?.hideLoadingIndicator()
+        viewController?.showNetworkError { [weak self] in
+            guard let self = self else { return }
+            
+            self.viewController?.showLoadingIndicator()
+            self.questionFactory?.requestNextQuestion()
+        }
+    }
+    
+    func didLoadDataFromServer() {
+        questionFactory?.requestNextQuestion()
+    }
+
+    func didFailToLoadData(with error: Error) {
+        viewController?.hideLoadingIndicator()
+        viewController?.showNetworkError { [weak self] in
+            guard let self = self else { return }
+            
+            self.viewController?.showLoadingIndicator()
+            self.questionFactory?.loadData()
+        }
+    }
+    
+    // MARK: - Private functions
     func isLastQuestion() -> Bool {
         currentQuestionIndex == questionsAmount - 1
     }
     
-    func resetQuestionIndex() {
+    func restartGame() {
         currentQuestionIndex = 0
+        correctAnswers = 0
+        
+        viewController?.showLoadingIndicator()
+        questionFactory?.requestNextQuestion()
     }
     
     func switchToNextQuestion() {
@@ -31,33 +84,24 @@ final class MovieQuizPresenter {
     }
     
     func noButtonClicked() {
-        didAnswer(isYes: false)
+        didAnswer(false)
     }
     
     func yesButtonClicked() {
-        didAnswer(isYes: true)
+        didAnswer(true)
     }
     
-    private func didAnswer(isYes givenAnswer: Bool) {
+    private func didAnswer(_ givenAnswer: Bool) {
         guard let currentQuestion = currentQuestion else {
             return
         }
-        viewController?.showAnswerResult(isCorrect: givenAnswer == currentQuestion.correctAnswer)
-    }
-    
-    func didReceiveNextQuestion(question: QuizQuestion?) {
-        guard let question = question else {
-            return
+        
+        let isCorrect = (givenAnswer == currentQuestion.correctAnswer)
+        if isCorrect {
+            correctAnswers += 1
         }
         
-        currentQuestion = question
-        let viewModel = convert(model: question)
-        
-        DispatchQueue.main.async { [weak self] in
-            self?.viewController?.hideLoadingIndicator()
-            self?.viewController?.hideImageFrame()
-            self?.viewController?.show(quiz: viewModel)
-        }
+        viewController?.showAnswerResult(isCorrect: isCorrect)
     }
     
     func showNextQuestionOrResults() {
