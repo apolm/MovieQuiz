@@ -1,6 +1,6 @@
 import UIKit
 
-final class MovieQuizViewController: UIViewController {
+final class MovieQuizViewController: UIViewController, MovieQuizViewControllerProtocol {
     private var presenter: MovieQuizPresenter!
     
     @IBOutlet private var counterLabel: UILabel!
