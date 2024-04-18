@@ -30,18 +30,19 @@ final class MovieQuizViewController: UIViewController {
         presenter.yesButtonClicked()
     }
     
-    // MARK: - Private functions
+    // MARK: - UI Functions
     func showAnswerResult(isCorrect: Bool) {
         imageView.layer.masksToBounds = true
         imageView.layer.borderWidth = 8
         imageView.layer.borderColor = isCorrect ? UIColor.ypGreen.cgColor : UIColor.ypRed.cgColor
         noButton.isEnabled = false
         yesButton.isEnabled = false
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            guard let self = self else { return }
-            self.presenter.showNextQuestionOrResults()
-        }
+    }
+    
+    func hideAnswerResult() {
+        imageView.layer.borderWidth = 0
+        noButton.isEnabled = true
+        yesButton.isEnabled = true
     }
     
     func showLoadingIndicator() {
@@ -57,8 +58,19 @@ final class MovieQuizViewController: UIViewController {
         yesButton.isEnabled = true
     }
     
-    func hideImageFrame() {
-        imageView.layer.borderWidth = 0
+    func show(quiz step: QuizStepViewModel) {
+        counterLabel.text = step.questionNumber
+        imageView.image = step.image
+        textLabel.text = step.question
+    }
+    
+    func show(quiz result: QuizResultsViewModel, completion: @escaping () -> Void) {
+        let alertModel = AlertModel(title: result.title,
+                                    message: result.message,
+                                    buttonText: result.buttonText,
+                                    accessibilityIdentifier: "Game Results",
+                                    completion: completion)
+        AlertPresenter(controller: self).showAlert(model: alertModel)
     }
     
     func showNetworkError(completion: @escaping () -> Void) {
@@ -66,25 +78,6 @@ final class MovieQuizViewController: UIViewController {
                                     message: "Невозможно загрузить данные",
                                     buttonText: "Попробовать еще раз",
                                     accessibilityIdentifier: "Network Error",
-                                    completion: completion)
-        AlertPresenter(controller: self).showAlert(model: alertModel)
-    }
-    
-    func show(quiz step: QuizStepViewModel) {
-        counterLabel.text = step.questionNumber
-        imageView.image = step.image
-        textLabel.text = step.question
-    }
-    
-    func show(quiz result: QuizResultsViewModel) {
-        let completion = { [weak self] in
-            guard let self = self else { return }
-            self.presenter.restartGame()
-        }
-        let alertModel = AlertModel(title: result.title,
-                                    message: result.message,
-                                    buttonText: result.buttonText,
-                                    accessibilityIdentifier: "Game Results",
                                     completion: completion)
         AlertPresenter(controller: self).showAlert(model: alertModel)
     }

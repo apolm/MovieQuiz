@@ -16,7 +16,6 @@ final class MovieQuizPresenter: QuestionFactoryDelegate {
         questionFactory?.loadData()
         
         self.viewController?.showLoadingIndicator()
-        
     }
     
     // MARK: - QuestionFactoryDelegate
@@ -30,7 +29,7 @@ final class MovieQuizPresenter: QuestionFactoryDelegate {
         
         DispatchQueue.main.async { [weak self] in
             self?.viewController?.hideLoadingIndicator()
-            self?.viewController?.hideImageFrame()
+            self?.viewController?.hideAnswerResult()
             self?.viewController?.show(quiz: viewModel)
         }
     }
@@ -38,10 +37,8 @@ final class MovieQuizPresenter: QuestionFactoryDelegate {
     func didFailToReceiveNextQuestion(with error: Error) {
         viewController?.hideLoadingIndicator()
         viewController?.showNetworkError { [weak self] in
-            guard let self = self else { return }
-            
-            self.viewController?.showLoadingIndicator()
-            self.questionFactory?.requestNextQuestion()
+            self?.viewController?.showLoadingIndicator()
+            self?.questionFactory?.requestNextQuestion()
         }
     }
     
@@ -52,46 +49,22 @@ final class MovieQuizPresenter: QuestionFactoryDelegate {
     func didFailToLoadData(with error: Error) {
         viewController?.hideLoadingIndicator()
         viewController?.showNetworkError { [weak self] in
-            guard let self = self else { return }
-            
-            self.viewController?.showLoadingIndicator()
-            self.questionFactory?.loadData()
+            self?.viewController?.showLoadingIndicator()
+            self?.questionFactory?.loadData()
         }
     }
     
-    // MARK: - Private functions
-    func isLastQuestion() -> Bool {
-        currentQuestionIndex == questionsAmount - 1
-    }
-    
-    func restartGame() {
-        currentQuestionIndex = 0
-        correctAnswers = 0
-        
-        viewController?.showLoadingIndicator()
-        questionFactory?.requestNextQuestion()
-    }
-    
-    func switchToNextQuestion() {
-        currentQuestionIndex += 1
-    }
-    
-    func convert(model: QuizQuestion) -> QuizStepViewModel {
-        QuizStepViewModel(
-            image: UIImage(data: model.image) ?? UIImage(),
-            question: model.text,
-            questionNumber: "\(currentQuestionIndex + 1)/\(questionsAmount)")
-    }
-    
+    // MARK: - Actions
     func noButtonClicked() {
-        didAnswer(false)
+        proceedWithAnswer(false)
     }
     
     func yesButtonClicked() {
-        didAnswer(true)
+        proceedWithAnswer(true)
     }
     
-    private func didAnswer(_ givenAnswer: Bool) {
+    // MARK: - Private functions
+    private func proceedWithAnswer(_ givenAnswer: Bool) {
         guard let currentQuestion = currentQuestion else {
             return
         }
@@ -102,10 +75,14 @@ final class MovieQuizPresenter: QuestionFactoryDelegate {
         }
         
         viewController?.showAnswerResult(isCorrect: isCorrect)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.proceedToNextQuestionOrResults()
+        }
     }
     
-    func showNextQuestionOrResults() {
-        if isLastQuestion() {
+    private func proceedToNextQuestionOrResults() {
+        if currentQuestionIndex == questionsAmount - 1 {
             statisticService.store(correct: correctAnswers, total: questionsAmount)
             
             let message = """
@@ -119,12 +96,30 @@ final class MovieQuizPresenter: QuestionFactoryDelegate {
                 title: "Этот раунд окончен!",
                 message: message,
                 buttonText: "Сыграть еще раз")
-            viewController?.show(quiz: viewModel)
-            viewController?.hideImageFrame()
+            
+            viewController?.show(quiz: viewModel) { [weak self] in
+                self?.restartGame()
+            }
+            viewController?.hideAnswerResult()
         } else {
-            switchToNextQuestion()
+            currentQuestionIndex += 1
             viewController?.showLoadingIndicator()
             questionFactory?.requestNextQuestion()
         }
+    }
+    
+    private func restartGame() {
+        currentQuestionIndex = 0
+        correctAnswers = 0
+        
+        viewController?.showLoadingIndicator()
+        questionFactory?.requestNextQuestion()
+    }
+    
+    private func convert(model: QuizQuestion) -> QuizStepViewModel {
+        QuizStepViewModel(
+            image: UIImage(data: model.image) ?? UIImage(),
+            question: model.text,
+            questionNumber: "\(currentQuestionIndex + 1)/\(questionsAmount)")
     }
 }
